@@ -1,23 +1,6 @@
-<button
-  id="install-btn"
-  onClick={() => window.installPWA()}
-  style={{
-    display: "none",
-    padding: "10px 15px",
-    background: "#007bff",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    marginBottom: "15px",
-    cursor: "pointer",
-    fontSize: "16px"
-  }}
->
-  تثبيت التطبيق على الجهاز
-</button>
-
+// src/App.jsx
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
+import { HashRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 
 // UI Components
 import { Card, CardContent } from "./components/ui/card";
@@ -32,12 +15,13 @@ import ChildrenPage from "./pages/ChildrenPage";
 const AUTH_USERNAME = "ملايكاوي";
 const AUTH_PASSWORD = "12345";
 
+// Protected Route
 function ProtectedRoute({ children }) {
   const isLogged = localStorage.getItem("logged") === "true";
   return isLogged ? children : <Navigate to="/" />;
 }
 
-// Login
+// Login Page
 function Login() {
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -46,7 +30,7 @@ function Login() {
   function handleLogin() {
     if (user === AUTH_USERNAME && pass === AUTH_PASSWORD) {
       localStorage.setItem("logged", "true");
-      window.location.href = "/dashboard";
+      window.location.href = "#/dashboard";
     } else {
       setError("❌ بيانات غير صحيحة");
     }
@@ -70,7 +54,7 @@ function Login() {
   );
 }
 
-// Dashboard
+// Dashboard Page
 function Dashboard() {
   return (
     <div className="min-h-screen p-6 bg-[url('/church-bg.jpg')] bg-cover bg-center">
@@ -114,7 +98,7 @@ function InstallButton() {
   const handleInstall = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult) => {
+      deferredPrompt.userChoice.then(() => {
         setDeferredPrompt(null);
         setShowButton(false);
       });
@@ -130,7 +114,7 @@ function InstallButton() {
   );
 }
 
-// App
+// Main App
 export default function App() {
   return (
     <Router>
