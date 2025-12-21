@@ -225,12 +225,6 @@ export default function ChildrenPage() {
             <span>نقل الأطفال المحددين إلى:</span>
             <select className="p-2 border rounded" onChange={e => handleCutSelected(e.target.value)} defaultValue="">
               <option value="" disabled>اختر الصف</option>
-              <option value="grade1">سنة أولى</option>
-              <option value="grade2">سنة ثانية</option>
-              <option value="grade3">سنة ثالثة</option>
-              <option value="grade4">سنة رابعة</option>
-              <option value="grade5">سنة خامسة</option>
-              <option value="grade6">سنة سادسة</option>
             </select>
             <button
               onClick={() => alert("⚠️ هذا الزر مقفول حاليًا")}
