@@ -1,14 +1,8 @@
-import React, { useState } from "react";
-import {
-  HashRouter as Router,
-  Routes,
-  Route,
-  Link,
-  Navigate,
-  useParams,
-} from "react-router-dom";
+// src/App.jsx
+import React, { useState, useEffect } from "react";
+import { HashRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 
-// UI
+// UI Components
 import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 
@@ -16,250 +10,127 @@ import { Button } from "./components/ui/button";
 import AttendancePage from "./pages/Attendance";
 import MassPage from "./pages/MassPage";
 import ChildrenPage from "./pages/ChildrenPage";
-import TusbhaAttendance from "./pages/TusbhaAttendance";
 
-/* =========================
-   يوزر + باسورد لكل صف
-========================= */
-const STAGE_CREDENTIALS = {
-  angels: { username: "malayka", password: "1111" },
-  grade1: { username: "grade1", password: "2222" },
-  grade2: { username: "grade2", password: "3333" },
-  grade3: { username: "grade3", password: "4444" },
-  grade4: { username: "grade4", password: "5555" },
-  grade5: { username: "grade5", password: "6666" },
-  grade6: { username: "grade6", password: "7777" },
-};
+// Auth
+const AUTH_USERNAME = "ملايكاوي";
+const AUTH_PASSWORD = "12345";
 
-/* =========================
-   أسماء الصفوف بالعربي
-========================= */
-const STAGE_LABELS = {
-  angels: "ملايكة",
-  grade1: "سنة أولى",
-  grade2: "سنة تانية",
-  grade3: "سنة تالتة",
-  grade4: "سنة رابعة",
-  grade5: "سنة خامسة",
-  grade6: "سنة سادسة",
-};
-
-/* =========================
-   Route Protection
-========================= */
-function ProtectedStage({ children }) {
-  const { stage } = useParams();
-  const allowed = localStorage.getItem(`auth_${stage}`) === "true";
-  return allowed ? children : <Navigate to={`/login/${stage}`} />;
+// Protected Route
+function ProtectedRoute({ children }) {
+  const isLogged = localStorage.getItem("logged") === "true";
+  return isLogged ? children : <Navigate to="/" />;
 }
 
-/* =========================
-   Login لكل صف (بالعربي)
-========================= */
-function StageLogin() {
-  const { stage } = useParams();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+// Login Page
+function Login() {
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
   const [error, setError] = useState("");
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstall, setShowInstall] = useState(false);
 
-  const handleLogin = () => {
-    const creds = STAGE_CREDENTIALS[stage];
-    if (username === creds.username && password === creds.password) {
-      localStorage.setItem(`auth_${stage}`, "true");
-      window.location.href = `#/${stage}/dashboard`;
+  function handleLogin() {
+    if (user === AUTH_USERNAME && pass === AUTH_PASSWORD) {
+      localStorage.setItem("logged", "true");
+      window.location.href = "#/dashboard";
     } else {
-      setError("❌ اسم المستخدم أو كلمة المرور غير صحيحة");
+      setError("❌ بيانات غير صحيحة");
+    }
+  }
+
+  useEffect(() => {
+    // تغيير اسم التاب
+    document.title = "ابليكيشن مخدوم";
+
+    // تغيير أيقونة التاب
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.href = "/favicon.ico";
+    document.head.appendChild(link);
+
+    // قبل تثبيت PWA
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstall(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        setDeferredPrompt(null);
+        setShowInstall(false);
+      });
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-md p-6 rounded-2xl shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-[url('/church-bg.jpg')] bg-cover bg-center p-4">
+      <Card className="w-full max-w-md shadow-2xl rounded-2xl p-4 backdrop-blur-md bg-white/80">
         <CardContent>
-          <h1 className="text-2xl font-bold text-center mb-1 text-red-900">
-            تسجيل الدخول
-          </h1>
-
-          <p className="text-center text-gray-600 mb-4">
-            {STAGE_LABELS[stage]}
-          </p>
-
+          <h1 className="text-3xl font-bold mb-2 text-center text-red-900">ملائكة كنيسة السيدة العذراء – محرم بك</h1>
+          <h2 className="text-lg font-semibold text-center mb-4 text-gray-700">ابليكيشن مخدوم (يرجي تسجيل الدخول)</h2>
           {error && <p className="text-center text-red-600 mb-2">{error}</p>}
+          <div className="space-y-3">
+            <input onChange={(e) => setUser(e.target.value)} placeholder="اسم المستخدم" className="w-full p-3 border rounded-xl" />
+            <input onChange={(e) => setPass(e.target.value)} placeholder="كلمة المرور" type="password" className="w-full p-3 border rounded-xl" />
+          </div>
+          <Button className="w-full mt-4" onClick={handleLogin}>تسجيل الدخول</Button>
 
-          <input
-            type="text"
-            placeholder="اسم المستخدم"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full p-3 border rounded-xl mb-4"
-          />
-
-          <input
-            type="password"
-            placeholder="كلمة المرور"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-xl mb-4"
-          />
-
-          <Button className="w-full" onClick={handleLogin}>
-            دخول
-          </Button>
-
-          <Link to="/" className="block text-center mt-4 text-blue-600">
-          ⬅ رجوع
-          </Link>
+          {showInstall && (
+            <button onClick={handleInstall} className="w-full mt-4 px-4 py-2 bg-red-600 text-white rounded-xl shadow-lg">
+              ➕ Install App
+            </button>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-/* =========================
-   Dashboard خاص بكل صف
-========================= */
-function StageDashboard() {
-  const { stage } = useParams();
-  const showTusbha = ["grade3", "grade4", "grade5", "grade6"].includes(stage);
-
+// Dashboard Page
+function Dashboard() {
   return (
-    <div className="min-h-screen p-6 bg-gray-100">
-      <h1 className="text-4xl font-bold mb-1 text-center text-red-900">
-        لوحة التحكم
-      </h1>
-
-      <p className="text-center text-gray-600 mb-6 text-lg">
-        {STAGE_LABELS[stage]}
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-4 rounded-2xl shadow-xl">
-          <CardContent>
-            <Link to={`/${stage}/children`} className="block text-xl text-center">
-              👼 بيانات الاطفال
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="p-4 rounded-2xl shadow-xl">
-          <CardContent>
-            <Link to={`/${stage}/attendance`} className="block text-xl text-center">
-              📘 مدارس الاحد
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="p-4 rounded-2xl shadow-xl">
-          <CardContent>
-            <Link to={`/${stage}/mass`} className="block text-xl text-center">
-              ⛪ القداس
-            </Link>
-          </CardContent>
-        </Card>
-
-        {showTusbha && (
-          <Card className="p-4 rounded-2xl shadow-xl">
+    <div className="min-h-screen p-6 bg-[url('/church-bg.jpg')] bg-cover bg-center">
+      <div className="bg-white/80 p-6 rounded-2xl shadow-xl backdrop-blur-md">
+        <h1 className="text-4xl font-bold mb-6 text-red-900 text-center">لوحة التحكم</h1>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="p-4 rounded-2xl shadow-xl hover:shadow-2xl transition bg-white/80 backdrop-blur-md">
             <CardContent>
-              <Link to={`/${stage}/tusbha`} className="block text-xl text-center">
-                🎼 التسبحة
-              </Link>
+              <Link to="/attendance" className="block text-xl font-semibold text-center">📘 تسجيل حضور مدارس الاحد</Link>
             </CardContent>
           </Card>
-        )}
+          <Card className="p-4 rounded-2xl shadow-xl hover:shadow-2xl transition bg-white/80 backdrop-blur-md">
+            <CardContent>
+              <Link to="/mass" className="block text-xl font-semibold text-center">⛪ تسجيل حضور القداس</Link>
+            </CardContent>
+          </Card>
+          <Card className="p-4 rounded-2xl shadow-xl hover:shadow-2xl transition bg-white/80 backdrop-blur-md">
+            <CardContent>
+              <Link to="/children" className="block text-xl font-semibold text-center">👼 إدارة بيانات الأطفال</Link>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 }
 
-/* =========================
-   Dashboard الرئيسي
-========================= */
-function MainDashboard() {
-  const stages = [
-    { key: "angels", label: "👼 ملايكة" },
-    { key: "grade1", label: "📘 سنة أولى" },
-    { key: "grade2", label: "📗 سنة تانية" },
-    { key: "grade3", label: "📙 سنة تالتة" },
-    { key: "grade4", label: "📕 سنة رابعة" },
-    { key: "grade5", label: "📒 سنة خامسة" },
-    { key: "grade6", label: "📓 سنة سادسة" },
-  ];
-
-  return (
-    <div className="min-h-screen p-6 bg-gray-100">
-      <h1 className="text-4xl font-bold mb-6 text-center text-red-900">
-        الأقسام
-      </h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {stages.map((s) => (
-          <Card key={s.key} className="p-4 rounded-2xl shadow-xl">
-            <CardContent>
-              <Link to={`/login/${s.key}`} className="block text-xl text-center">
-                {s.label}
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* =========================
-   App
-========================= */
+// Main App
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<MainDashboard />} />
-        <Route path="/login/:stage" element={<StageLogin />} />
-
-        <Route
-          path="/:stage/dashboard"
-          element={
-            <ProtectedStage>
-              <StageDashboard />
-            </ProtectedStage>
-          }
-        />
-
-        <Route
-          path="/:stage/children"
-          element={
-            <ProtectedStage>
-              <ChildrenPage />
-            </ProtectedStage>
-          }
-        />
-
-        <Route
-          path="/:stage/attendance"
-          element={
-            <ProtectedStage>
-              <AttendancePage />
-            </ProtectedStage>
-          }
-        />
-
-        <Route
-          path="/:stage/mass"
-          element={
-            <ProtectedStage>
-              <MassPage />
-            </ProtectedStage>
-          }
-        />
-
-        <Route
-          path="/:stage/tusbha"
-          element={
-            <ProtectedStage>
-              <TusbhaAttendance />
-            </ProtectedStage>
-          }
-        />
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute><AttendancePage /></ProtectedRoute>} />
+        <Route path="/mass" element={<ProtectedRoute><MassPage /></ProtectedRoute>} />
+        <Route path="/children" element={<ProtectedRoute><ChildrenPage /></ProtectedRoute>} />
       </Routes>
     </Router>
   );

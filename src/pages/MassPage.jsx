@@ -1,314 +1,251 @@
 // src/pages/MassPage.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { db } from "../firebase/firebaseConfig";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-} from "firebase/firestore";
-import { useParams } from "react-router-dom";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { debounce } from "lodash";
 import * as XLSX from "xlsx";
 
-// أسماء الصفوف بالعربي
-const STAGE_LABELS = {
-  angels: "ملايكة",
-  grade1: "سنة أولى",
-  grade2: "سنة تانية",
-  grade3: "سنة تالتة",
-  grade4: "سنة رابعة",
-  grade5: "سنة خامسة",
-  grade6: "سنة سادسة",
-};
-
 export default function MassPage() {
-  const { stage } = useParams();
-  const stageLabel = STAGE_LABELS[stage] || stage;
-
   const [children, setChildren] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [newChildName, setNewChildName] = useState("");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [showSelection, setShowSelection] = useState(false);
-  const [selectedRows, setSelectedRows] = useState({});
-  const rowsPerPage = 10; // هنا خليتها 10 أسماء في الصفحة
+  const rowsPerPage = 20;
 
   const massCollection = collection(db, "mass");
 
   useEffect(() => {
     const fetchData = async () => {
-      const q = query(massCollection, where("page", "==", stage));
-      const snapshot = await getDocs(q);
-      setChildren(
-        snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data(),
-        }))
-      );
+      try {
+        const snapshot = await getDocs(massCollection);
+        const tempChildren = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return { id: docSnap.id, name: data.name, days: data.days || {} };
+        });
+        setChildren(tempChildren);
+      } catch (error) {
+        console.error("خطأ في جلب البيانات:", error);
+        alert("❌ فشل تحميل البيانات");
+      }
     };
     fetchData();
-  }, [stage]);
+  }, []);
 
   const debounceUpdate = debounce(async (docRef, date, field, value) => {
-    await updateDoc(docRef, {
-      [`days.${date}.${field}`]: value,
-    });
+    try {
+      await updateDoc(docRef, { [`days.${date}.${field}`]: value }, { merge: true });
+    } catch (error) {
+      console.error("خطأ في تحديث اليوم:", error);
+      alert("❌ فشل تحديث اليوم");
+    }
   }, 300);
 
-  const handleCheckboxChange = (id, field, checked) => {
+  const addChild = async () => {
+    const trimmedName = newChildName.trim();
+    if (!trimmedName) return alert("⚠️ أدخل اسم الطفل");
+
+    const childId = trimmedName.replace(/\s+/g, "_") + "_" + Date.now();
+    const newChild = { name: trimmedName, days: {} };
+
+    try {
+      const docRef = doc(db, "mass", childId);
+      await setDoc(docRef, newChild);
+      setChildren(prev => [...prev, { id: childId, name: trimmedName, days: {} }]);
+      setNewChildName("");
+    } catch (error) {
+      console.error("خطأ في إضافة الطفل:", error);
+      alert("❌ حدث خطأ أثناء الإضافة");
+    }
+  };
+
+  const handleCheckboxChange = (childId, field, checked) => {
     setChildren(prev =>
       prev.map(c => {
-        if (c.id === id) {
-          const days = {
+        if (c.id === childId) {
+          const updatedDays = {
             ...c.days,
-            [selectedDate]: {
-              ...c.days?.[selectedDate],
-              [field]: checked,
-            },
+            [selectedDate]: { ...c.days[selectedDate], [field]: checked }
           };
-          debounceUpdate(doc(db, "mass", id), selectedDate, field, checked);
-          return { ...c, days };
+          const docRef = doc(db, "mass", childId);
+          debounceUpdate(docRef, selectedDate, field, checked);
+          return { ...c, days: updatedDays };
         }
         return c;
       })
     );
   };
 
-  const addChild = async () => {
-    const name = newChildName.trim();
-    if (!name) return alert("⚠️ أدخل اسم الطفل");
+  const deleteChild = async (childId) => {
+    const confirmDelete = window.confirm(
+      "⚠️ تحذير!\nهل أنت متأكد من حذف بيانات هذا الطفل؟\nلن يمكن استرجاع البيانات بعد الحذف."
+    );
+    if (!confirmDelete) return;
 
-    const newChild = { name, days: {}, page: stage };
-    const ref = await addDoc(massCollection, newChild);
-    setChildren(prev => [...prev, { id: ref.id, ...newChild }]);
-    setNewChildName("");
-  };
-
-  const deleteChild = async (id) => {
-    if (!window.confirm("⚠️ متأكد من الحذف؟")) return;
-    await deleteDoc(doc(db, "mass", id));
-    setChildren(prev => prev.filter(c => c.id !== id));
+    const docRef = doc(db, "mass", childId);
+    try {
+      await deleteDoc(docRef);
+      setChildren(prev => prev.filter(c => c.id !== childId));
+    } catch (error) {
+      console.error("خطأ في حذف الطفل:", error);
+      alert("❌ فشل حذف الطفل");
+    }
   };
 
   const resetAttendance = async () => {
-    if (!window.confirm("⚠️ إعادة ضبط حضور اليوم؟")) return;
-
-    for (const c of children) {
-      await updateDoc(doc(db, "mass", c.id), {
-        [`days.${selectedDate}`]: { present: false, absent: false },
-      });
-    }
-
-    setChildren(prev =>
-      prev.map(c => ({
-        ...c,
-        days: {
+    if (!window.confirm("هل أنت متأكد من إعادة ضبط الحضور لهذا اليوم؟")) return;
+    try {
+      const updatedChildren = [];
+      for (const c of children) {
+        const updatedDays = {
           ...c.days,
-          [selectedDate]: { present: false, absent: false },
-        },
-      }))
-    );
+          [selectedDate]: { present: false, absent: false }
+        };
+        const docRef = doc(db, "mass", c.id);
+        await updateDoc(docRef, { [`days.${selectedDate}`]: updatedDays[selectedDate] });
+        updatedChildren.push({ ...c, days: updatedDays });
+      }
+      setChildren(updatedChildren);
+    } catch (error) {
+      console.error("خطأ في إعادة ضبط الحضور:", error);
+      alert("❌ حدث خطأ أثناء إعادة ضبط الحضور");
+    }
   };
 
-  const uploadExcel = async (e) => {
+  const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const data = new Uint8Array(evt.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    for (let i = 1; i < rows.length; i++) {
-      const name = rows[i][0];
-      if (!name) continue;
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.every(cell => !cell)) continue;
+        const name = row[0] || "";
+        if (!name) continue;
 
-      const newChild = { name: name.toString(), days: {}, page: stage };
-      const ref = await addDoc(massCollection, newChild);
-      setChildren(prev => [...prev, { id: ref.id, ...newChild }]);
-    }
+        const childId = name.replace(/\s+/g, "_") + "_" + Date.now();
+        const newChild = { name, days: {} };
+
+        try {
+          const docRef = doc(db, "mass", childId);
+          await setDoc(docRef, newChild);
+          setChildren(prev => [...prev, { id: childId, name, days: {} }]);
+        } catch (error) {
+          console.error("خطأ في إضافة الاسم من Excel:", error);
+        }
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = "";
   };
 
-  // تصفية + ترتيب
-  const filteredChildren = useMemo(() => {
-    return children
-      .filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
-  }, [children, search]);
-
-  // Pagination
-  const indexOfLast = currentPage * rowsPerPage;
-  const indexOfFirst = indexOfLast - rowsPerPage;
-  const currentRows = filteredChildren.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredChildren.length / rowsPerPage);
-
-  // اعادة الصفحة للأولى عند البحث
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
-
-  const getMonthlyCount = (child) => {
-    const [y, m] = selectedDate.split("-");
+  // ✅ الإضافة فقط: عدد مرات الحضور في الشهر
+  const getMonthlyAttendanceCount = (child) => {
+    const [year, month] = selectedDate.split("-");
     return Object.entries(child.days || {}).filter(
-      ([d, v]) => d.startsWith(`${y}-${m}`) && v.present
+      ([date, data]) =>
+        date.startsWith(`${year}-${month}`) && data.present === true
     ).length;
   };
 
+  const filteredChildren = children
+    .filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+  const indexOfLastRow = currentPage * rowsPerPage;
+  const indexOfFirstRow = indexOfLastRow - rowsPerPage;
+  const currentRows = filteredChildren.slice(indexOfFirstRow, indexOfLastRow);
+  const totalPages = Math.ceil(filteredChildren.length / rowsPerPage);
+
   return (
     <div className="min-h-screen p-6">
-      <div className="backdrop-blur-md bg-white/80 p-6 rounded-2xl shadow-xl">
-        <h1 className="text-3xl font-bold mb-4 text-center text-red-900">
-            حضور القداس – {stageLabel}
+      <div className="bg-white p-6 rounded-2xl shadow-xl">
+        <h1 className="text-2xl md:text-3xl font-semibold mb-4 text-center text-red-900">
+          ⛪ حضور الأطفال القداس
         </h1>
 
-        {/* أدوات التحكم */}
-        <div className="flex flex-wrap gap-2 mb-4 items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <input
+            type="text"
+            placeholder="ابحث عن اسم الطفل..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="🔍 ابحث عن اسم الطفل..."
-            className="p-2 border rounded-xl flex-1 min-w-[180px]"
+            className="p-2 border rounded-xl w-full md:w-auto flex-grow"
           />
-
           <input
             type="date"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value)}
-            className="p-2 border rounded-xl"
+            className="p-2 border rounded-xl w-full md:w-auto"
           />
-
           <input
+            type="text"
+            placeholder="اضافة اسم الطفل..."
             value={newChildName}
             onChange={e => setNewChildName(e.target.value)}
-            placeholder="إضافة اسم طفل..."
-            className="p-2 border rounded-xl"
+            className="p-2 border rounded-xl w-full md:w-auto"
           />
-
-          <button
-            onClick={addChild}
-            className="px-4 py-2 bg-green-500 text-white rounded-xl"
-          >
-            ➕ إضافة
+          <button onClick={addChild} className="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition">
+            ➕ إضافة طفل
           </button>
-
-          <label className="px-4 py-2 bg-blue-500 text-white rounded-xl cursor-pointer">
+          <label className="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 cursor-pointer transition">
             ⬆️ Upload Excel
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={uploadExcel}
-              className="hidden"
-            />
+            <input type="file" accept=".xlsx, .xls" onChange={handleUpload} className="hidden" />
           </label>
-
-          <button
-            onClick={resetAttendance}
-            className="px-4 py-2 bg-yellow-500 text-white rounded-xl"
-          >
-            🔄 إعادة ضبط
-          </button>
-
-          <button
-            onClick={() => setShowSelection(true)}
-            className="px-4 py-2 bg-purple-500 text-white rounded-xl"
-          >
-            اختيار للنقل
+          <button onClick={resetAttendance} className="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition">
+            🔄 إعادة ضبط الحضور
           </button>
         </div>
 
-        {/* زر النقل */}
-        {showSelection && (
-          <div className="mb-4 p-4 border rounded-xl bg-gray-50 flex gap-2 items-center">
-            <span>نقل المحددين إلى:</span>
-            <select className="p-2 border rounded" defaultValue="">
-              <option value="" disabled>اختر الصف</option>
-            </select>
-            <button
-              disabled
-              className="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed opacity-70"
-            >
-              🔒 مقفول
-            </button>
-            <button
-              onClick={() => setShowSelection(false)}
-              className="px-4 py-2 bg-gray-400 text-white rounded"
-            >
-              إلغاء
-            </button>
-          </div>
-        )}
-
-        {/* الجدول */}
         <div className="overflow-x-auto">
-          <table className="w-full border shadow rounded-xl overflow-hidden text-center min-w-[700px]">
-            <thead className="bg-red-800 text-white text-lg">
+          <table className="w-full border shadow rounded-xl text-center min-w-[600px]">
+            <thead className="bg-red-800 text-white text-lg sticky top-0">
               <tr>
-                <th className="p-3">#</th>
-                <th className="p-3">اسم الطفل</th>
-                <th className="p-3">حضور ✅</th>
-                <th className="p-3">غياب ❌</th>
-                <th className="p-3">عدد الشهر</th>
-                {showSelection && <th className="p-3">اختيار</th>}
-                <th className="p-3">حذف</th>
+                <th className="p-3 w-12">#</th>
+                <th className="p-3 w-60">اسم الطفل</th>
+                <th className="p-3 w-24">حضور ✅</th>
+                <th className="p-3 w-24">غياب ❌</th>
+                <th className="p-3 w-32">عدد الحضور بالشهر</th>
+                <th className="p-3 w-16">حذف</th>
               </tr>
             </thead>
             <tbody>
-              {currentRows.map((c, i) => {
-                const d = c.days?.[selectedDate] || {};
+              {currentRows.map((child, idx) => {
+                const dayData = child.days[selectedDate] || { present: false, absent: false };
                 return (
-                  <tr key={c.id} className="even:bg-gray-100 text-lg">
-                    <td className="p-3">{indexOfFirst + i + 1}</td>
-                    <td className="p-3 text-left pr-6">{c.name}</td>
+                  <tr key={child.id} className="even:bg-gray-100 hover:bg-gray-200 transition">
+                    <td className="p-3">{indexOfFirstRow + idx + 1}</td>
+                    <td className="p-3 text-left">{child.name}</td>
                     <td className="p-3">
                       <input
                         type="checkbox"
-                        className="w-6 h-6"
-                        checked={d.present || false}
-                        onChange={e =>
-                          handleCheckboxChange(c.id, "present", e.target.checked)
-                        }
+                        className="w-7 h-7"
+                        checked={dayData.present}
+                        onChange={e => handleCheckboxChange(child.id, "present", e.target.checked)}
                       />
                     </td>
                     <td className="p-3">
                       <input
                         type="checkbox"
-                        className="w-6 h-6"
-                        checked={d.absent || false}
-                        onChange={e =>
-                          handleCheckboxChange(c.id, "absent", e.target.checked)
-                        }
+                        className="w-7 h-7"
+                        checked={dayData.absent}
+                        onChange={e => handleCheckboxChange(child.id, "absent", e.target.checked)}
                       />
                     </td>
                     <td className="p-3 font-bold text-green-700">
-                      {getMonthlyCount(c)}
+                      {getMonthlyAttendanceCount(child)}
                     </td>
-                    {showSelection && (
-                      <td className="p-3">
-                        <input
-                          type="checkbox"
-                          className="w-6 h-6"
-                          checked={!!selectedRows[c.id]}
-                          onChange={e =>
-                            setSelectedRows(prev => ({
-                              ...prev,
-                              [c.id]: e.target.checked,
-                            }))
-                          }
-                        />
-                      </td>
-                    )}
                     <td className="p-3">
                       <button
-                        onClick={() => deleteChild(c.id)}
-                        className="px-2 py-1 bg-red-500 text-white rounded"
+                        onClick={() => deleteChild(child.id)}
+                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition"
                       >
                         ❌
                       </button>
@@ -320,40 +257,26 @@ export default function MassPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-            >
-              السابق
-            </button>
+        <div className="flex justify-center mt-4 gap-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 transition"
+            disabled={currentPage === 1}
+          >
+            السابق
+          </button>
+          <span className="px-3 py-1 bg-gray-200 rounded">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400 transition"
+            disabled={currentPage === totalPages}
+          >
+            التالي
+          </button>
+        </div>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === page
-                    ? "bg-red-800 text-white"
-                    : "bg-white hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-            >
-              التالي
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
