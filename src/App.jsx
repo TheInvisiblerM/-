@@ -62,15 +62,27 @@ function StageLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    const creds = STAGE_CREDENTIALS[stage];
-    if (username === creds.username && password === creds.password) {
-      localStorage.setItem(`auth_${stage}`, "true");
-      window.location.href = `#/${stage}/dashboard`;
-    } else {
-      setError("❌ اسم المستخدم أو كلمة المرور غير صحيحة");
-    }
-  };
+const handleLogin = () => {
+  const creds = STAGE_CREDENTIALS[stage];
+  if (!creds) {
+    setError("❌ خطأ في الصفحة");
+    return;
+  }
+
+  const cleanUsername = username.trim();
+  const cleanPassword = password.trim();
+
+  if (
+    cleanUsername === creds.username &&
+    cleanPassword === creds.password
+  ) {
+    localStorage.setItem(`auth_${stage}`, "true");
+    window.location.href = `#/${stage}/dashboard`;
+  } else {
+    setError("❌ اسم المستخدم أو كلمة المرور غير صحيحة");
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
