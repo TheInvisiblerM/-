@@ -22,7 +22,7 @@ import TusbhaAttendance from "./pages/TusbhaAttendance";
    يوزر + باسورد لكل صف
 ========================= */
 const STAGE_CREDENTIALS = {
-  angels: { username: "malayka", password: "1111" },
+  angels: { username: "ملايكاوي", password: "12345" },
   grade1: { username: "grade1", password: "2222" },
   grade2: { username: "grade2", password: "3333" },
   grade3: { username: "grade3", password: "4444" },
