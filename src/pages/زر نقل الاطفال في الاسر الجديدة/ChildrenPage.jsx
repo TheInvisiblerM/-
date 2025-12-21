@@ -6,16 +6,6 @@ import { debounce } from "lodash";
 import * as XLSX from "xlsx";
 import { useParams } from "react-router-dom";
 
-const stageNames = {
-  angels: "ملايكة",
-  grade1: "سنة أولى",
-  grade2: "سنة ثانية",
-  grade3: "سنة تالتة",
-  grade4: "سنة رابعة",
-  grade5: "سنة خامسة",
-  grade6: "سنة سادسة"
-};
-
 export default function ChildrenPage() {
   const { stage } = useParams();
   const [rows, setRows] = useState([]);
@@ -44,6 +34,7 @@ export default function ChildrenPage() {
     return `${year}-${month}-${day}`;
   };
 
+  // جلب بيانات الأطفال حسب الصفحة الحالية فقط
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -169,7 +160,7 @@ export default function ChildrenPage() {
   const handleCutSelected = async (targetStage) => {
     const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
     if (selectedIds.length === 0) return alert("⚠️ اختر الأطفال لنقلهم أولاً");
-    if (!window.confirm(`⚠️ هل أنت متأكد من نقل ${selectedIds.length} طفل إلى ${stageNames[targetStage]}?`)) return;
+    if (!window.confirm(`⚠️ هل أنت متأكد من نقل ${selectedIds.length} طفل إلى ${targetStage}?`)) return;
 
     for (const id of selectedIds) {
       const docRef = doc(db, "children", id);
@@ -193,7 +184,7 @@ export default function ChildrenPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="backdrop-blur-md bg-white/80 p-6 rounded-2xl shadow-xl">
-        <h1 className="text-3xl font-bold mb-4 text-center text-red-900">إدارة بيانات الأطفال - {stageNames[stage]}</h1>
+        <h1 className="text-3xl font-bold mb-4 text-center text-red-900">إدارة بيانات الأطفال</h1>
 
         {/* أدوات التحكم العليا */}
         <div className="flex flex-wrap gap-2 mb-4 items-center justify-between">
@@ -218,30 +209,6 @@ export default function ChildrenPage() {
           <button onClick={handleReset} className="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition">🔄 إعادة ضبط الزيارات</button>
           <button onClick={() => setShowSelection(true)} className="px-4 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition">اختيار الأطفال للنقل</button>
         </div>
-
-        {/* زر نقل الأطفال المحددين */}
-        {showSelection && (
-          <div className="mb-4 p-4 border rounded-xl bg-gray-50 flex gap-2 items-center">
-            <span>نقل الأطفال المحددين إلى:</span>
-            <select className="p-2 border rounded" onChange={e => handleCutSelected(e.target.value)} defaultValue="">
-              <option value="" disabled>اختر الصف</option>
-              <option value="grade1">سنة أولى</option>
-              <option value="grade2">سنة ثانية</option>
-              <option value="grade3">سنة ثالثة</option>
-              <option value="grade4">سنة رابعة</option>
-              <option value="grade5">سنة خامسة</option>
-              <option value="grade6">سنة سادسة</option>
-            </select>
-            <button
-              onClick={() => alert("⚠️ هذا الزر مقفول حاليًا")}
-              disabled
-              className="px-4 py-2 bg-gray-400 text-white rounded flex items-center gap-1 cursor-not-allowed opacity-70"
-            >
-              🔒 مقفول
-            </button>
-            <button onClick={() => setShowSelection(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">إلغاء</button>
-          </div>
-        )}
 
         {/* جدول البيانات */}
         <div className="overflow-x-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
@@ -289,37 +256,26 @@ export default function ChildrenPage() {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-            >
-              السابق
-            </button>
+        <div className="flex justify-center mt-4 gap-2">
+          <button onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">السابق</button>
+          <span className="px-3 py-1 bg-gray-200 rounded">{currentPage} / {totalPages}</span>
+          <button onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">التالي</button>
+        </div>
 
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1 rounded border ${
-                  currentPage === page
-                    ? "bg-red-800 text-white"
-                    : "bg-white hover:bg-gray-100"
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 rounded border bg-white disabled:opacity-50"
-            >
-              التالي
-            </button>
+        {/* زر نقل الأطفال */}
+        {showSelection && (
+          <div className="mt-4 p-4 border rounded-xl bg-gray-50 flex gap-2 items-center">
+            <span>نقل الأطفال المحددين إلى:</span>
+            <select className="p-2 border rounded" onChange={e => handleCutSelected(e.target.value)} defaultValue="">
+              <option value="" disabled>اختر الصف الجديد</option>
+              <option value="grade1">أولى</option>
+              <option value="grade2">تانية</option>
+              <option value="grade3">تالتة</option>
+              <option value="grade4">رابعة</option>
+              <option value="grade5">خامسة</option>
+              <option value="grade6">سادسة</option>
+            </select>
+            <button onClick={() => setShowSelection(false)} className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500">إلغاء</button>
           </div>
         )}
 
