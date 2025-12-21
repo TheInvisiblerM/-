@@ -238,10 +238,6 @@ export default function TusbhaAttendance() {
               <option value="" disabled>
                 اختر الصف
               </option>
-              <option value="grade3">سنة تالتة</option>
-              <option value="grade4">سنة رابعة</option>
-              <option value="grade5">سنة خامسة</option>
-              <option value="grade6">سنة سادسة</option>
             </select>
             <button
               onClick={() => alert("⚠️ هذا الزر مقفول حاليًا")}
