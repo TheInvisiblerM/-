@@ -23,12 +23,12 @@ import TusbhaAttendance from "./pages/TusbhaAttendance";
 ========================= */
 const STAGE_CREDENTIALS = {
   angels: { username: "ملايكاوي", password: "12345" },
-  grade1: { username: "grade1", password: "2222" },
-  grade2: { username: "grade2", password: "3333" },
-  grade3: { username: "grade3", password: "4444" },
-  grade4: { username: "grade4", password: "5555" },
-  grade5: { username: "grade5", password: "6666" },
-  grade6: { username: "grade6", password: "7777" },
+  grade1: { username: "grade1", password: "g2222" },
+  grade2: { username: "grade2", password: "g3333" },
+  grade3: { username: "grade3", password: "g4444" },
+  grade4: { username: "grade4", password: "g5555" },
+  grade5: { username: "grade5", password: "g6666" },
+  grade6: { username: "grade6", password: "g7777" },
 };
 
 /* =========================
