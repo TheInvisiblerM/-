@@ -193,7 +193,11 @@ export default function ChildrenPage() {
   return (
     <div className="min-h-screen p-6">
       <div className="backdrop-blur-md bg-white/80 p-6 rounded-2xl shadow-xl">
-        <h1 className="text-3xl font-bold mb-4 text-center text-red-900">إدارة بيانات الأطفال - {stageNames[stage]}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center text-red-900 break-words px-2">
+  إدارة بيانات الأطفال
+  <span className="block sm:inline"> – {stageNames[stage]}</span>
+</h1>
+
 
         {/* أدوات التحكم العليا */}
         <div className="flex flex-wrap gap-2 mb-4 items-center justify-between">
@@ -321,3 +325,4 @@ export default function ChildrenPage() {
     </div>
   );
 }
+
